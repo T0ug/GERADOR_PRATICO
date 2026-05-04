@@ -2,62 +2,72 @@
 
 ## Origem
 
-Executor
+Discovery
 
 ## Destino
 
-Reviewer
+Architect
 
 ## Workflow
 
-`execute_task.md`
+`start_project.md` / etapa de arquitetura aplicada como evolucao de escopo
 
 ## Skill a utilizar
 
-validate_delivery
+design_architecture
 
-## Task entregue
+## Task a executar
 
-- ID: T018
-- Nome: Refinar consolidacao de CFOP e formatacao do Excel
+- ID: T024
+- Nome: Atualizar arquitetura para cache em sessao, CPF/CNPJ e cancelamento
 
-## Resumo da implementacao
+## Contexto
 
-O modulo `report.rs` foi refinado para:
+O usuario confirmou a nova evolucao apos o fechamento operacional da funcionalidade de GTINS.
 
-- consolidar CFOPs repetidos por nota, preservando a ordem da primeira aparicao
-- aplicar bordas finas em todas as celulas de dados
-- aplicar cabecalho com borda externa grossa
-- formatar a coluna de valor em estilo contabil com `R$`
-- incluir a logo acima do cabecalho, centralizada em relacao as colunas da planilha
+Resumo confirmado:
 
-## Contexto necessario
+- cache apenas enquanto o app estiver aberto;
+- cache acumulativo por hash do conteudo de cada XML;
+- XML interno de ZIP tambem deve ser identificado pelo hash do conteudo do XML;
+- arquivos ja processados devem ser reaproveitados mesmo em novos relatorios;
+- arquivos novos ou diferentes devem ser os unicos processados novamente;
+- ao trocar CPF/CNPJ, o app pode reaproveitar parsing/importacao, mas deve reclassificar para o novo documento informado;
+- gerar novo Excel mudando opcoes de descricao, limite e GTINS nao deve reprocessar XML;
+- deve haver suporte a CPF alem de CNPJ no campo atual;
+- botao de gerar relatorio deve ficar desabilitado durante processamento;
+- deve haver botao de cancelar processamento;
+- cancelamento preserva no cache os XMLs ja processados com sucesso;
+- ao tentar fechar o app, exibir modal avisando que o cache sera perdido e sera necessario processar os arquivos novamente;
+- remover persistencia em `config.json`;
+- ultimo CPF/CNPJ e pastas devem ficar apenas em memoria.
 
-Depois da aprovacao da T017, o usuario pediu que a identidade visual tambem aparecesse no Excel. A entrega permaneceu concentrada no backend Rust, sem tocar parser, classificacao, importacao nem a UI React.
+## Objetivo
 
-## Arquivos modificados
+Atualizar a arquitetura para orientar a implementacao segura dessa evolucao, sem codificar ainda.
 
-- `src-tauri/src/report.rs`
+## Artefatos obrigatorios para leitura
+
+- `docs/idea.md`
+- `docs/scope.md`
+- `docs/non_goals.md`
+- `docs/decision_log.md`
+- `docs/implementation_plan.md`
 - `docs/tasks.md`
-- `docs/project_status.md`
-- `docs/handoff.md`
+- `docs/architecture.md`
+- codigo atual em `src-tauri/src/` e `src/` quando necessario para entender limites.
 
-## Pontos relevantes para revisao
+## Fora de escopo
 
-- `join_unique_values()` foi adicionado para consolidar CFOPs duplicados.
-- O cabecalho passou a ser escrito na linha 4, deixando espaco para a logo acima.
-- `insert_logo_above_header()` usa `icones_e_logo/LOGO.png` com posicionamento centralizado.
-- A formatacao de celulas foi separada entre texto, cabecalho e moeda contabil.
-- Foram adicionados testes para CFOP unico e existencia do caminho da logo.
+- Nao implementar codigo.
+- Nao criar cache persistente.
+- Nao armazenar dados dentro do executavel.
+- Nao criar banco de dados.
+- Nao alterar regras fiscais alem do suporte CPF/CNPJ ja confirmado.
 
-## Validacao executada
+## Saidas esperadas
 
-- `cargo test` em `src-tauri`
-- `cargo build` em `src-tauri`
-- `npm run test`
-- `npm run build`
-
-## Observacoes
-
-- O usuario forneceu `icones_e_logo/LOGO.png` como base para a logo do relatorio.
-- O fluxo fiscal nao foi alterado nesta entrega.
+- `docs/architecture.md` atualizado.
+- `docs/decision_log.md` atualizado se houver decisoes arquiteturais adicionais.
+- `docs/tasks.md` atualizado com tasks de execucao derivadas.
+- `docs/project_status.md` e `docs/handoff.md` preparados para a proxima etapa.

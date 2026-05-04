@@ -173,7 +173,10 @@ mod tests {
         assert_eq!(result.warnings, Vec::new());
         assert_eq!(result.candidates.len(), 1);
         assert_eq!(result.candidates[0].source_name, "nota.xml");
-        assert_eq!(result.candidates[0].content, "<nota><numero>1</numero></nota>");
+        assert_eq!(
+            result.candidates[0].content,
+            "<nota><numero>1</numero></nota>"
+        );
     }
 
     #[test]
@@ -186,7 +189,10 @@ mod tests {
 
         assert_eq!(result.warnings, Vec::new());
         assert_eq!(result.candidates.len(), 1);
-        assert_eq!(result.candidates[0].source_name, "notas.zip::internas/abril/nota.xml");
+        assert_eq!(
+            result.candidates[0].source_name,
+            "notas.zip::internas/abril/nota.xml"
+        );
         assert_eq!(result.candidates[0].content, "<cte>ok</cte>");
     }
 

@@ -41,7 +41,10 @@ mod tests {
 
         let deduplicated = deduplicate_by_access_key(documents);
 
-        assert_eq!(source_names(&deduplicated), vec!["primeiro.xml", "segundo.xml"]);
+        assert_eq!(
+            source_names(&deduplicated),
+            vec!["primeiro.xml", "segundo.xml"]
+        );
     }
 
     #[test]
@@ -54,7 +57,10 @@ mod tests {
 
         let deduplicated = deduplicate_by_access_key(documents);
 
-        assert_eq!(source_names(&deduplicated), vec!["primeiro.xml", "terceiro.xml"]);
+        assert_eq!(
+            source_names(&deduplicated),
+            vec!["primeiro.xml", "terceiro.xml"]
+        );
         assert_eq!(deduplicated[0].document_number, "1");
     }
 
@@ -95,7 +101,11 @@ mod tests {
             .collect()
     }
 
-    fn document(source_name: &str, access_key: &str, document_number: &str) -> ParsedFiscalDocument {
+    fn document(
+        source_name: &str,
+        access_key: &str,
+        document_number: &str,
+    ) -> ParsedFiscalDocument {
         ParsedFiscalDocument {
             source_name: source_name.to_string(),
             access_key: access_key.to_string(),
@@ -109,6 +119,7 @@ mod tests {
             taker: None,
             recipient: None,
             sender: None,
+            product_items: Vec::new(),
         }
     }
 }

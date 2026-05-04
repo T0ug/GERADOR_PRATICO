@@ -239,3 +239,92 @@ Decisao: incluir a logo da empresa na planilha Excel, centralizada acima do cabe
 Justificativa: apos aprovar a T017, o usuario pediu que a identidade visual tambem apareca no relatorio final, sem alterar as colunas nem o fluxo fiscal.
 
 Impacto: a T018 passa a incluir insercao de imagem no workbook alem dos ajustes de CFOP, bordas e formato contabil.
+
+## 2026-04-30 - Extracao opcional de GTINS
+
+Decisao: adicionar ao fluxo atual uma opcao `Extrair GTINS tambem?`, sempre iniciada desligada e nao persistida, para incluir aba(s) de GTINS no mesmo Excel gerado pelo relatorio principal.
+
+Regras confirmadas pelo usuario:
+
+- considerar apenas produtos de NF-e e NFC-e;
+- considerar apenas documentos classificados como entradas ou saidas;
+- excluir CT-e e notas sem CNPJ identificado;
+- gerar aba unica `GTINS` quando nao houver separacao por operacao;
+- gerar abas `GTINS Entradas` e `GTINS Saidas` quando o usuario habilitar a separacao por entrada e saida;
+- usar apenas as colunas Descricao, NCM, CEST e GTIN;
+- incluir produtos mesmo quando CEST ou GTIN estiverem ausentes, deixando o campo em branco;
+- usar sempre a descricao completa do produto;
+- deduplicar pelo conjunto completo Descricao + NCM + CEST + GTIN;
+- suportar grandes volumes, incluindo mais de 30 mil XMLs e mais de 100 mil produtos.
+
+Justificativa: o usuario precisa reaproveitar os XMLs fiscais importados para obter uma lista consolidada de produtos e GTINS sem gerar um arquivo separado nem poluir o relatorio quando a opcao nao for necessaria.
+
+Impacto: a arquitetura deve ser atualizada antes da implementacao para definir como os itens de produtos serao extraidos, acumulados, deduplicados e escritos no Excel sem prejudicar desempenho em grandes volumes.
+
+## 2026-04-30 - Abordagem arquitetural para GTINS
+
+Decisao: implementar a extracao opcional de GTINS estendendo o modelo normalizado existente com uma lista de itens de produto em `ParsedFiscalDocument`.
+
+Alternativas consideradas:
+
+- criar um modulo separado para reprocessar XMLs e cruzar produtos por chave de acesso;
+- tentar montar GTINS diretamente no modulo de relatorio a partir dos campos atuais de descricao.
+
+Justificativa: estender o modelo normalizado evita reprocessar XML, preserva a deduplicacao por chave de acesso ja existente, mantem o frontend sem dados fiscais pesados e concentra a regra no backend Rust.
+
+Impacto: o parser deve extrair Descricao, NCM, CEST e GTIN por item de NF-e/NFC-e; o report deve filtrar documentos classificados como entrada/saida, deduplicar por Descricao + NCM + CEST + GTIN e criar a aba unica ou as abas separadas conforme opcoes enviadas pelo frontend.
+
+## 2026-04-30 - Validacao operacional da extracao de GTINS
+
+Decisao: apos a aprovacao da T022, criar uma task de validacao operacional da funcionalidade de GTINS antes de considerar o incremento encerrado na pratica.
+
+Justificativa: a implementacao foi aprovada por testes automatizados e builds, mas o escopo e o plano macro incluem validacao de comportamento operacional e cuidado com grandes volumes, incluindo mais de 30 mil XMLs e mais de 100 mil produtos.
+
+Impacto: a proxima task passa a ser a T023, focada em gerar evidencia reproduzivel da extracao opcional de GTINS em cenarios de uso, sem alterar codigo nem escopo funcional.
+
+## 2026-04-30 - Fechamento da validacao operacional de GTINS e nova demanda de cache
+
+Decisao: marcar a T023 como concluida com validacao operacional realizada diretamente pelo usuario.
+
+Justificativa: o usuario informou que executou os testes e validou a funcionalidade de GTINS por conta propria.
+
+Impacto: o incremento de GTINS fica operacionalmente encerrado. A proxima demanda sugerida pelo usuario e manter cache in app dos dados para gerar novos relatorios sem reprocessar os arquivos a cada geracao, alem de impedir duplo clique no botao de gerar relatorio. Essa demanda deve passar por Discovery/clarificacao antes de arquitetura e execucao.
+
+## 2026-04-30 - Escopo confirmado para cache em sessao, CPF e cancelamento
+
+Decisao: a nova evolucao deve manter cache apenas enquanto o app estiver aberto, usando hash do conteudo de cada XML para identificar dados ja processados.
+
+Regras confirmadas pelo usuario:
+
+- o cache deve ser perdido ao fechar o aplicativo;
+- ao tentar fechar o app, deve aparecer um modal no estilo visual da aplicacao avisando que os dados processados serao perdidos;
+- se o usuario quiser gerar relatorio novamente apos fechar, sera necessario processar os arquivos novamente;
+- o cache deve ser acumulativo durante a sessao;
+- ao selecionar arquivos novos ou diferentes, o app deve processar apenas o que ainda nao estiver no cache;
+- XMLs devem ser identificados por hash do conteudo, inclusive XMLs internos de ZIP;
+- ao trocar CPF/CNPJ, o app nao deve trazer classificacoes incompatíveis com o novo documento informado;
+- o app pode reaproveitar parsing/importacao em cache e reclassificar conforme o novo CPF/CNPJ;
+- deve ser possivel gerar relatorio novamente alterando apenas opcoes de descricao, limite de palavras e GTINS sem reprocessar XMLs;
+- o campo atual deve aceitar CPF e CNPJ;
+- o botao de gerar relatorio deve ficar desabilitado durante processamento;
+- deve haver botao de cancelar processamento;
+- ao cancelar, os XMLs processados com sucesso devem permanecer no cache da sessao;
+- ultimo CPF/CNPJ e pastas devem ficar apenas em memoria, sem `config.json`.
+
+Justificativa: o usuario processa volumes muito grandes, como 137 mil XMLs, e relatou travamento visual ate o fim do processamento. A evolucao deve reduzir reprocessamento, evitar acoes duplicadas e permitir cancelamento sem perder progresso ja concluido.
+
+Impacto: a arquitetura deve ser atualizada antes da execucao para definir cache em memoria, calculo de hash, invalidacao por conteudo, reclassificacao por CPF/CNPJ, cancelamento cooperativo, remocao de persistencia em arquivo e modal de fechamento.
+
+## 2026-04-30 - Abordagem arquitetural escolhida para cache e cancelamento
+
+Decisao: usar cache em sessao no backend Rust combinado com processamento assíncrono cancelavel.
+
+Alternativas consideradas:
+
+- cache simples no comando atual;
+- cache em sessao com reclassificacao por CPF/CNPJ, mas sem processamento assíncrono;
+- cache em sessao com processamento assíncrono cancelavel.
+
+Justificativa: a terceira abordagem atende melhor o volume informado pelo usuario, incluindo cenarios com cerca de 137 mil XMLs, porque alem de evitar reprocessamento tambem permite cancelamento cooperativo, bloqueia processamento concorrente e reduz travamento visual da interface.
+
+Impacto: a arquitetura deve separar estado de sessao, cache por hash, processamento assíncrono/cancelavel, reclassificacao por CPF/CNPJ e geracao do Excel a partir dos dados ja normalizados.

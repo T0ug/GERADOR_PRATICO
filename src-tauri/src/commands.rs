@@ -7,7 +7,7 @@ use crate::deduplicator::deduplicate_by_access_key;
 use crate::importer::collect_import_candidates;
 use crate::parser::{parse_fiscal_document, ParseWarningReason};
 use crate::progress::{emit_progress, ProgressStage};
-use crate::report::{generate_excel, suggested_report_file_name};
+use crate::report::{generate_excel, suggested_report_file_name, GtinsReportOptions};
 #[derive(Serialize)]
 pub struct AppStatus {
     message: String,
@@ -38,6 +38,8 @@ pub struct GenerateReportRequest {
     pub export_path: String,
     pub description_mode: String,
     pub word_limit: Option<usize>,
+    pub extract_gtins: bool,
+    pub split_gtins_by_operation: bool,
 }
 
 #[derive(Serialize)]
@@ -58,6 +60,10 @@ pub fn generate_report(
 ) -> Result<GenerateReportResponse, String> {
     let mut warnings: Vec<String> = Vec::new();
     let import_total = request.xml_paths.len() + request.zip_paths.len();
+    let gtins_options = GtinsReportOptions {
+        extract_gtins: request.extract_gtins,
+        split_by_operation: request.split_gtins_by_operation && request.extract_gtins,
+    };
 
     emit_progress(
         &app,
@@ -74,7 +80,10 @@ pub fn generate_report(
         ProgressStage::Leitura,
         import_total,
         import_total,
-        format!("Leitura concluida: {} XMLs candidatos encontrados.", import_result.candidates.len()),
+        format!(
+            "Leitura concluida: {} XMLs candidatos encontrados.",
+            import_result.candidates.len()
+        ),
     );
     for warning in &import_result.warnings {
         warnings.push(format!("{}: {:?}", warning.source_name, warning.reason));
@@ -112,7 +121,11 @@ pub fn generate_report(
             ProgressStage::Processamento,
             index + 1,
             processing_total,
-            format!("Processando documentos fiscais... {}/{}", index + 1, processing_total.max(1)),
+            format!(
+                "Processando documentos fiscais... {}/{}",
+                index + 1,
+                processing_total.max(1)
+            ),
         );
     }
 
@@ -137,7 +150,10 @@ pub fn generate_report(
         ProgressStage::Processamento,
         processing_total,
         processing_total,
-        format!("Processamento concluido: {} documentos validos.", classified_docs.len()),
+        format!(
+            "Processamento concluido: {} documentos validos.",
+            classified_docs.len()
+        ),
     );
 
     let entradas_count = classified_docs
@@ -169,7 +185,12 @@ pub fn generate_report(
         1,
         "Gerando arquivo Excel...",
     );
-    let file_path = generate_excel(&classified_docs, &request.export_path, word_limit)?;
+    let file_path = generate_excel(
+        &classified_docs,
+        &request.export_path,
+        word_limit,
+        gtins_options,
+    )?;
     let suggested_file_name = suggested_report_file_name(&classified_docs);
     emit_progress(
         &app,

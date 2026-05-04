@@ -1135,3 +1135,392 @@ A entrega respeita o escopo da T017 e permanece concentrada em frontend e ativos
 ## Recomendacoes
 
 - Retornar ao Orchestrator para executar a T018, focada em consolidacao de CFOP e formatacao do Excel.
+
+---
+
+# Review Report
+
+## Task analisada
+
+- ID: T018
+- Nome: Refinar consolidacao de CFOP e formatacao do Excel
+
+## Status
+
+Aprovado com ressalvas.
+
+## Resumo da entrega
+
+A entrega refinou `src-tauri/src/report.rs` para consolidar CFOPs repetidos por nota, aplicar bordas nas celulas do relatorio, formatar valores em estilo contabil com `R$` e inserir a logo acima do cabecalho das abas do Excel.
+
+A mudanca permaneceu concentrada no modulo de relatorio e nao alterou parser, classificacao, importacao nem a interface React.
+
+## Evidencias verificadas
+
+Arquivos principais inspecionados:
+
+- `docs/tasks.md`
+- `docs/handoff.md`
+- `docs/project_status.md`
+- `src-tauri/src/report.rs`
+- `icones_e_logo/LOGO.png`
+
+Comandos executados pelo Reviewer:
+
+- `cargo test` em `src-tauri`
+- `cargo build` em `src-tauri`
+- `npm run test`
+- `npm run build`
+
+Resultados:
+
+- `cargo test`: aprovado, 31 testes Rust passaram.
+- `cargo build`: aprovado.
+- `npm run test`: aprovado, 8 testes frontend passaram apos reexecucao fora do sandbox.
+- `npm run build`: aprovado.
+
+Observacao operacional: a primeira execucao de `npm run test` falhou com `spawn EPERM` ao carregar o esbuild/Vite no sandbox. O comando foi reexecutado com permissao elevada e passou.
+
+## Analise contra criterios de aceite
+
+- Uma nota com CFOP repetido nao repete o mesmo codigo na celula final: atendido por `join_unique_values()` e teste `joins_unique_cfops_preserving_order`.
+- O Excel gerado aplica borda externa grossa no cabecalho: atendido por `build_header_format()`.
+- O Excel gerado aplica todas as bordas nos itens: atendido pelos formatos de dados com `FormatBorder::Thin`.
+- A coluna de valor aparece em formato contabil: atendido por formato numerico com `R$`.
+- A logo aparece acima do cabecalho, centralizada em relacao as colunas da planilha: atendido por `insert_logo_above_header()`.
+- `cargo test` passa: atendido.
+- `cargo build` passa: atendido.
+- `npm run test` passa: atendido apos reexecucao fora do sandbox.
+- `npm run build` passa: atendido.
+
+## Problemas encontrados
+
+### Leve
+
+O handoff informa que a logo usada e `icones_e_logo/LOGO.png`, enquanto o codigo embute `icones_e_logo/LOGO_alta_resolução.png`. Como ambos sao ativos fornecidos na mesma pasta e a versao usada e apropriada para relatorio, isso nao bloqueia a entrega. A diferenca poderia ser explicitada em handoffs futuros para evitar ambiguidade documental.
+
+## Justificativa tecnica
+
+A implementacao corresponde ao escopo da T018 e esta alinhada com `docs/tasks.md`: os ajustes foram feitos no gerador de Excel, sem alterar regras fiscais centrais ou fluxo de importacao. Os testes automatizados cobrem a consolidacao de CFOP e a disponibilidade da logo embutida, e a geracao real de Excel continua exercitada pelo teste de relatorio.
+
+Os builds de Rust e frontend passaram, indicando que a entrega esta apta para avancar na pipeline.
+
+## Recomendacoes
+
+- Retornar ao Orchestrator para decidir a proxima acao formal.
+- Considerar a T019 ja registrada em `docs/tasks.md` como candidata natural para a proxima etapa, apos decisao do Orchestrator.
+
+---
+
+# Review Report
+
+## Task analisada
+
+- ID: T019
+- Nome: Atualizar arquitetura para extracao opcional de GTINS
+
+## Status
+
+Aprovado.
+
+## Resumo da entrega
+
+A entrega atualizou a arquitetura da extracao opcional de GTINS, mantendo a solucao alinhada ao desenho existente do projeto: frontend React apenas coleta opcoes locais e backend Rust/Tauri concentra parsing, deduplicacao, classificacao e geracao do Excel.
+
+A arquitetura definiu que `ParsedFiscalDocument` deve ser estendido com itens de produto, que o parser deve extrair produtos de NF-e/NFC-e, que CT-e permanece sem itens de GTINS, e que o modulo `report` deve gerar a aba unica ou abas separadas conforme opcoes enviadas pelo frontend.
+
+## Evidencias verificadas
+
+Arquivos principais inspecionados:
+
+- `docs/scope.md`
+- `docs/non_goals.md`
+- `docs/architecture.md`
+- `docs/decision_log.md`
+- `docs/tasks.md`
+- `docs/handoff.md`
+- `docs/project_status.md`
+
+Resultados verificados:
+
+- `docs/architecture.md` cobre modelo de dados, contrato UI/backend, fluxo, persistencia, integracoes, tratamento de erro e escalabilidade para GTINS.
+- `docs/decision_log.md` registra a decisao de estender o modelo normalizado e as alternativas consideradas.
+- `docs/tasks.md` define T020, T021 e T022 como tasks derivadas, especificas e testaveis.
+- Nao houve implementacao de codigo nesta etapa, respeitando o escopo da T019.
+
+## Analise contra criterios de aceite
+
+- A arquitetura explica claramente como os GTINS entram no fluxo existente: atendido.
+- A arquitetura cobre extracao, classificacao por operacao, deduplicacao e geracao das abas: atendido.
+- A arquitetura registra limites e cuidados de desempenho para grandes volumes: atendido.
+- As restricoes e nao objetivos confirmados pelo usuario continuam preservados: atendido.
+- As proximas tasks de execucao estao delimitadas, testaveis e alinhadas aos artefatos: atendido.
+
+## Problemas encontrados
+
+Nenhum problema encontrado.
+
+## Justificativa tecnica
+
+A arquitetura aprovada e proporcional ao escopo: evita reprocessar XML, aproveita a deduplicacao por chave de acesso ja existente, mantem o frontend sem massas fiscais e concentra a regra de GTINS no backend Rust. A divisao em T020, T021 e T022 reduz risco ao separar modelo/parser, UI/contrato e escrita do Excel.
+
+Como a task era documental/arquitetural, nao foram executados testes de build. A validacao foi feita por inspecao dos artefatos exigidos.
+
+## Recomendacoes
+
+- Retornar ao Orchestrator para decidir a proxima acao formal.
+- A candidata natural e iniciar a T020 com Executor e skill `implement_task`.
+
+---
+
+# Review Report
+
+## Task analisada
+
+- ID: T020
+- Nome: Implementar modelo e parser de itens para GTINS
+
+## Status
+
+Aprovado.
+
+## Resumo da entrega
+
+A entrega estendeu o modelo normalizado do parser para carregar itens de produto de NF-e/NFC-e em `product_items`, usando a nova estrutura `ProductItem` com `description`, `ncm`, `cest` e `gtin`.
+
+CT-e permanece sem itens de GTINS, campos opcionais ausentes sao normalizados como string vazia, itens sem descricao sao ignorados, e `SEM GTIN` nao e tratado como GTIN real.
+
+## Evidencias verificadas
+
+Arquivos principais inspecionados:
+
+- `docs/tasks.md`
+- `docs/handoff.md`
+- `docs/project_status.md`
+- `src-tauri/src/parser.rs`
+- `src-tauri/src/classifier.rs`
+- `src-tauri/src/deduplicator.rs`
+- `src-tauri/src/report.rs`
+
+Comandos executados pelo Reviewer:
+
+- `cargo test` em `src-tauri`
+- `cargo build` em `src-tauri`
+- `npm run test`
+- `npm run build`
+
+Resultados:
+
+- `cargo test`: aprovado, 32 testes Rust passaram.
+- `cargo build`: aprovado.
+- `npm run test`: aprovado, 8 testes frontend passaram apos reexecucao fora do sandbox.
+- `npm run build`: aprovado apos reexecucao fora do sandbox.
+
+Observacao operacional: a primeira execucao de `npm run test` e `npm run build` falhou com `spawn EPERM` ao iniciar esbuild/Vite no sandbox. Ambos passaram com permissao elevada.
+
+## Analise contra criterios de aceite
+
+- NF-e/NFC-e com produtos gera `product_items` com Descricao, NCM, CEST e GTIN: atendido.
+- Produto sem CEST ou GTIN continua presente com campo em branco: atendido.
+- Produto sem descricao nao entra em `product_items`: atendido.
+- CT-e retorna `product_items` vazio: atendido.
+- `cargo test` passa: atendido.
+- `cargo build` passa: atendido.
+- `npm run test` passa: atendido.
+- `npm run build` passa: atendido.
+
+## Problemas encontrados
+
+Nenhum problema encontrado.
+
+## Justificativa tecnica
+
+A implementacao ficou dentro do escopo da T020: alterou o parser/modelo e apenas ajustou construtores de teste em outros modulos para acomodar o novo campo obrigatorio. Nao houve alteracao de interface React, contrato Tauri, classificacao fiscal, persistencia ou geracao de abas de GTINS.
+
+## Recomendacoes
+
+- Retornar ao Orchestrator para decidir a proxima acao formal.
+- A candidata natural e iniciar a T021 com Executor e skill `implement_task`.
+
+---
+
+# Review Report
+
+## Task analisada
+
+- ID: T021
+- Nome: Implementar opcoes de GTINS no contrato e na interface
+
+## Status
+
+Aprovado.
+
+## Resumo da entrega
+
+A entrega adicionou controles locais de GTINS na interface e estendeu o request Tauri com `extract_gtins` e `split_gtins_by_operation`.
+
+O componente `GtinsOptions` renderiza o interruptor `Extrair GTINS tambem?` e exibe `Separar GTINS de entrada e saida em abas diferentes?` apenas quando a extracao esta ligada. O estado inicia desligado e a separacao volta para desligado quando a extracao e desativada.
+
+## Evidencias verificadas
+
+Arquivos principais inspecionados:
+
+- `src/App.tsx`
+- `src/components/GtinsOptions.tsx`
+- `src/styles.css`
+- `src-tauri/src/commands.rs`
+- `src-tauri/src/config.rs`
+- `src-tauri/src/report.rs`
+- `docs/tasks.md`
+- `docs/handoff.md`
+- `docs/project_status.md`
+
+Comandos executados pelo Reviewer:
+
+- `cargo test` em `src-tauri`
+- `cargo build` em `src-tauri`
+- `npm run test`
+- `npm run build`
+
+Resultados:
+
+- `cargo test`: aprovado, 32 testes Rust passaram.
+- `cargo build`: aprovado.
+- `npm run test`: aprovado, 8 testes frontend passaram apos reexecucao fora do sandbox.
+- `npm run build`: aprovado apos reexecucao fora do sandbox.
+
+Observacao operacional: a primeira execucao de `npm run test` e `npm run build` falhou com `spawn EPERM` ao iniciar esbuild/Vite no sandbox. Ambos passaram com permissao elevada.
+
+## Analise contra criterios de aceite
+
+- Os interruptores iniciam desligados ao abrir a tela: atendido por estados iniciais em `App.tsx`.
+- O segundo interruptor aparece apenas quando o primeiro esta ligado: atendido em `GtinsOptions`.
+- Ao desligar o primeiro interruptor, o segundo volta para desligado: atendido em `App.tsx`.
+- O request enviado ao backend contem as duas opcoes: atendido em `invoke("generate_report")` e `GenerateReportRequest`.
+- As opcoes nao sao salvas em config local: atendido por inspecao de `AppConfig` e chamadas de `persistConfig`.
+- `npm run test` passa: atendido.
+- `npm run build` passa: atendido.
+- `cargo test` passa: atendido.
+- `cargo build` passa: atendido.
+
+## Problemas encontrados
+
+Nenhum problema encontrado.
+
+## Justificativa tecnica
+
+A implementacao ficou dentro do escopo da T021. O frontend nao processa XML nem produtos, o backend apenas recebe as opcoes e ainda nao altera a geracao do Excel. Nao houve persistencia dos interruptores nem alteracao do parser alem do que ja havia sido feito na T020.
+
+## Recomendacoes
+
+- Retornar ao Orchestrator para decidir a proxima acao formal.
+- A candidata natural e iniciar a T022 com Executor e skill `implement_task`.
+
+---
+
+# Review Report
+
+## Task analisada
+
+- ID: T022
+- Nome: Gerar abas opcionais de GTINS no Excel
+
+## Status
+
+Aprovado.
+
+## Resumo da entrega
+
+A entrega conectou as opcoes de GTINS recebidas pelo comando Tauri ao gerador de Excel no backend Rust. O modulo `report` agora cria, conforme configuracao, nenhuma aba extra, a aba unica `GTINS`, ou as abas separadas `GTINS Entradas` e `GTINS Saidas`.
+
+A coleta considera apenas produtos de NF-e/NFC-e classificadas como entrada ou saida, exclui CT-e e notas sem CNPJ identificado, e deduplica produtos pela chave composta Descricao + NCM + CEST + GTIN.
+
+## Evidencias verificadas
+
+Arquivos principais inspecionados:
+
+- `src-tauri/src/report.rs`
+- `src-tauri/src/commands.rs`
+- `docs/tasks.md`
+- `docs/handoff.md`
+- `docs/project_status.md`
+- `docs/architecture.md`
+- `docs/non_goals.md`
+
+Comandos executados pelo Reviewer:
+
+- `cargo test` em `src-tauri`
+- `cargo build` em `src-tauri`
+- `npm run test`
+- `npm run build`
+
+Resultados:
+
+- `cargo test`: aprovado, 34 testes passaram.
+- `cargo build`: aprovado.
+- `npm run test`: aprovado, 8 testes passaram apos reexecucao fora do sandbox.
+- `npm run build`: aprovado apos reexecucao fora do sandbox.
+
+Observacao operacional: as primeiras execucoes de `npm run test` e `npm run build` falharam com `spawn EPERM` ao iniciar esbuild/Vite no sandbox. Ambos os comandos foram reexecutados com permissao elevada e passaram.
+
+## Analise contra criterios de aceite
+
+- Com GTINS desligado, nenhuma aba de GTINS e criada: atendido por `GtinsReportOptions::disabled()` e teste de workbook.
+- Com GTINS ligado e separacao desligada, aba `GTINS` e criada: atendido por `write_gtins_sheets()` e teste de workbook.
+- Com GTINS ligado e separacao ligada, abas `GTINS Entradas` e `GTINS Saidas` sao criadas: atendido por `write_gtins_sheets()` e teste de workbook.
+- CT-e e notas sem CNPJ identificado nao entram nas abas de GTINS: atendido por `is_gtins_eligible_document()` e teste de coleta.
+- Produto sem CEST ou GTIN aparece com campo em branco: atendido por teste de coleta com campos vazios.
+- Descricao de GTINS nao sofre limite de palavras: atendido porque `write_gtins_sheet()` escreve `item.description` diretamente, sem `limit_description()`.
+- Deduplicacao por Descricao + NCM + CEST + GTIN funciona: atendido por `collect_unique_gtins_items()` e teste dedicado.
+- `cargo test` passa: atendido.
+- `cargo build` passa: atendido.
+- `npm run test` passa: atendido.
+- `npm run build` passa: atendido.
+
+## Problemas encontrados
+
+Nenhum problema encontrado.
+
+## Justificativa tecnica
+
+A implementacao esta alinhada com `docs/architecture.md` e `docs/non_goals.md`: o frontend nao recebe produtos, a geracao permanece no Rust, nao ha reprocessamento de XML para GTINS, nao foi criado arquivo separado, nao ha persistencia das opcoes e a resposta do comando permanece sem contagens adicionais.
+
+Os testes adicionados cobrem o comportamento essencial das abas e da deduplicacao, e a suite completa de backend/frontend passou na validacao reproduzida pelo Reviewer.
+
+## Recomendacoes
+
+- Retornar ao Orchestrator para decidir o proximo passo do projeto.
+
+---
+
+# Review Report
+
+## Task analisada
+
+- ID: T023
+- Nome: Executar validacao operacional da extracao opcional de GTINS
+
+## Status
+
+Concluida por validacao operacional do usuario.
+
+## Resumo da validacao
+
+O usuario informou que executou os testes e validou operacionalmente a funcionalidade de GTINS por conta propria.
+
+## Evidencias registradas
+
+- Confirmacao direta do usuario em 2026-04-30 de que validou a T023 e fez os testes.
+- T020, T021 e T022 ja haviam sido aprovadas tecnicamente e registradas em `docs/review_report.md`.
+
+## Problemas encontrados
+
+Nenhum problema reportado pelo usuario.
+
+## Justificativa
+
+Como a T023 era uma validacao operacional e o usuario confirmou explicitamente que realizou os testes, a task foi marcada como concluida nos artefatos do projeto.
+
+## Recomendacoes
+
+- Iniciar Discovery para a nova demanda de cache in app e bloqueio de duplo clique no botao de gerar relatorio.

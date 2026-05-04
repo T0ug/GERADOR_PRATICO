@@ -2,17 +2,17 @@
 
 ## Fase atual
 
-Execution
+Architecture
 
 ## Estado
 
-T018 concluida pelo Executor e pronta para validacao.
+Discovery da demanda de cache em sessao, CPF/CNPJ e cancelamento concluido e confirmado pelo usuario. T024 criada para atualizar a arquitetura.
 
 ## Ultima task concluida
 
-- ID: T016
-- Nome: Ajustar UX final de processamento e formato do relatorio
-- Resultado: Aprovada
+- ID: T023
+- Nome: Executar validacao operacional da extracao opcional de GTINS
+- Resultado: Concluida por validacao operacional do usuario
 
 ## Artefatos disponiveis
 
@@ -28,25 +28,25 @@ T018 concluida pelo Executor e pronta para validacao.
 
 ## Task atual
 
-- ID: T018
-- Nome: Refinar consolidacao de CFOP e formatacao do Excel
-- Status: Concluida pelo Executor
+- ID: T024
+- Nome: Atualizar arquitetura para cache em sessao, CPF/CNPJ e cancelamento
+- Status: Nao iniciada
 
 ## Proxima acao
 
-Validar a entrega da T018 seguindo `execute_task.md`.
+Executar a T024 como task de arquitetura.
 
 ## Agente indicado
 
-Reviewer
+Architect
 
 ## Skill indicada
 
-validate_delivery
+design_architecture
 
 ## Workflow
 
-`execute_task.md`
+`start_project.md` / etapa de arquitetura aplicada como evolucao de escopo
 
 ## Bloqueios
 
@@ -54,4 +54,4 @@ Nenhum bloqueio conhecido.
 
 ## Observacoes
 
-`docs/` continua sendo a fonte de verdade do projeto. A T018 refinou o relatorio Excel com consolidacao de CFOP, bordas, formato contabil e logo acima do cabecalho, sem alterar o fluxo fiscal.
+`docs/` continua sendo a fonte de verdade do projeto. Nao deve haver implementacao antes da atualizacao arquitetural da T024.

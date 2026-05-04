@@ -20,7 +20,12 @@ pub struct ProgressUpdate {
 }
 
 impl ProgressUpdate {
-    pub fn new(stage: ProgressStage, current: usize, total: usize, message: impl Into<String>) -> Self {
+    pub fn new(
+        stage: ProgressStage,
+        current: usize,
+        total: usize,
+        message: impl Into<String>,
+    ) -> Self {
         let normalized_total = total.max(1);
         let bounded_current = current.min(normalized_total);
         let percent = ((bounded_current * 100) / normalized_total) as u8;
@@ -42,7 +47,10 @@ pub fn emit_progress(
     total: usize,
     message: impl Into<String>,
 ) {
-    let _ = app.emit(PROGRESS_EVENT, ProgressUpdate::new(stage, current, total, message));
+    let _ = app.emit(
+        PROGRESS_EVENT,
+        ProgressUpdate::new(stage, current, total, message),
+    );
 }
 
 #[cfg(test)]

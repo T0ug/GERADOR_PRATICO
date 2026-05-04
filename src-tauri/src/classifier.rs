@@ -96,6 +96,7 @@ mod tests {
                 name: "N".to_string(),
                 document: d.to_string(),
             }),
+            product_items: vec![],
         }
     }
 

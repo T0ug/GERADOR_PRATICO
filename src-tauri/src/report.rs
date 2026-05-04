@@ -1,4 +1,5 @@
 use crate::classifier::{ClassifiedDocument, DocumentClassification};
+use crate::parser::{FiscalDocumentType, ProductItem};
 use chrono::{DateTime, Datelike};
 use rust_xlsxwriter::{Format, FormatAlign, FormatBorder, Image, Workbook, Worksheet};
 use std::collections::HashSet;
@@ -17,16 +18,35 @@ pub const REPORT_SHEETS: ReportSheetNames = ReportSheetNames {
     sem_cnpj_identificado: "Notas sem CNPJ identificado",
 };
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct GtinsReportOptions {
+    pub extract_gtins: bool,
+    pub split_by_operation: bool,
+}
+
+impl GtinsReportOptions {
+    pub fn disabled() -> Self {
+        Self {
+            extract_gtins: false,
+            split_by_operation: false,
+        }
+    }
+}
+
 const LOGO_WIDTH_PIXELS: u32 = 240;
 const LOGO_HEIGHT_PIXELS: u32 = 80;
 const HEADER_ROW: u32 = 4;
-const REPORT_LOGO_BYTES: &[u8] =
-    include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/../icones_e_logo/LOGO_alta_resolução.png"));
+const GTINS_HEADERS: [&str; 4] = ["Descricao", "NCM", "CEST", "GTIN"];
+const REPORT_LOGO_BYTES: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../icones_e_logo/LOGO_alta_resolução.png"
+));
 
 pub fn generate_excel(
     documents: &[ClassifiedDocument],
     export_path: &str,
     description_word_limit: Option<usize>,
+    gtins_options: GtinsReportOptions,
 ) -> Result<String, String> {
     let final_path = determine_final_path(documents, export_path)?;
 
@@ -125,12 +145,7 @@ pub fn generate_excel(
                 .map_err(|e| e.to_string())?;
 
             worksheet
-                .write_string_with_format(
-                    row,
-                    1,
-                    &doc.document.document_number,
-                    &data_text_format,
-                )
+                .write_string_with_format(row, 1, &doc.document.document_number, &data_text_format)
                 .map_err(|e| e.to_string())?;
 
             if let Some(val_str) = &doc.document.total_value {
@@ -162,8 +177,20 @@ pub fn generate_excel(
 
             match sheet_type {
                 SheetType::Entradas => {
-                    write_party_cell(worksheet, row, 5, doc.document.issuer.as_ref(), &data_text_format)?;
-                    write_party_cell(worksheet, row, 6, doc.document.sender.as_ref(), &data_text_format)?;
+                    write_party_cell(
+                        worksheet,
+                        row,
+                        5,
+                        doc.document.issuer.as_ref(),
+                        &data_text_format,
+                    )?;
+                    write_party_cell(
+                        worksheet,
+                        row,
+                        6,
+                        doc.document.sender.as_ref(),
+                        &data_text_format,
+                    )?;
                 }
                 SheetType::Saidas => {
                     write_party_cell(
@@ -175,7 +202,13 @@ pub fn generate_excel(
                     )?;
                 }
                 SheetType::SemCnpj => {
-                    write_party_cell(worksheet, row, 5, doc.document.taker.as_ref(), &data_text_format)?;
+                    write_party_cell(
+                        worksheet,
+                        row,
+                        5,
+                        doc.document.taker.as_ref(),
+                        &data_text_format,
+                    )?;
                     write_party_cell(
                         worksheet,
                         row,
@@ -183,7 +216,13 @@ pub fn generate_excel(
                         doc.document.recipient.as_ref(),
                         &data_text_format,
                     )?;
-                    write_party_cell(worksheet, row, 7, doc.document.sender.as_ref(), &data_text_format)?;
+                    write_party_cell(
+                        worksheet,
+                        row,
+                        7,
+                        doc.document.sender.as_ref(),
+                        &data_text_format,
+                    )?;
                 }
             }
 
@@ -191,9 +230,131 @@ pub fn generate_excel(
         }
     }
 
+    write_gtins_sheets(&mut workbook, documents, gtins_options)?;
+
     workbook.save(&final_path).map_err(|e| e.to_string())?;
 
     Ok(final_path)
+}
+
+fn write_gtins_sheets(
+    workbook: &mut Workbook,
+    documents: &[ClassifiedDocument],
+    options: GtinsReportOptions,
+) -> Result<(), String> {
+    if !options.extract_gtins {
+        return Ok(());
+    }
+
+    if options.split_by_operation {
+        write_gtins_sheet(
+            workbook,
+            "GTINS Entradas",
+            &collect_unique_gtins_items(documents, Some(&DocumentClassification::Entrada)),
+        )?;
+        write_gtins_sheet(
+            workbook,
+            "GTINS Saidas",
+            &collect_unique_gtins_items(documents, Some(&DocumentClassification::Saida)),
+        )?;
+    } else {
+        write_gtins_sheet(
+            workbook,
+            "GTINS",
+            &collect_unique_gtins_items(documents, None),
+        )?;
+    }
+
+    Ok(())
+}
+
+fn collect_unique_gtins_items<'a>(
+    documents: &'a [ClassifiedDocument],
+    classification_filter: Option<&DocumentClassification>,
+) -> Vec<&'a ProductItem> {
+    let mut seen = HashSet::new();
+    let mut unique_items = Vec::new();
+
+    for doc in documents {
+        if !is_gtins_eligible_document(doc, classification_filter) {
+            continue;
+        }
+
+        for item in &doc.document.product_items {
+            let key = (
+                item.description.as_str(),
+                item.ncm.as_str(),
+                item.cest.as_str(),
+                item.gtin.as_str(),
+            );
+
+            if seen.insert(key) {
+                unique_items.push(item);
+            }
+        }
+    }
+
+    unique_items
+}
+
+fn is_gtins_eligible_document(
+    doc: &ClassifiedDocument,
+    classification_filter: Option<&DocumentClassification>,
+) -> bool {
+    let is_supported_document = matches!(
+        doc.document.document_type,
+        FiscalDocumentType::Nfe | FiscalDocumentType::Nfce
+    );
+    let is_supported_classification = matches!(
+        doc.classification,
+        DocumentClassification::Entrada | DocumentClassification::Saida
+    );
+    let matches_filter = classification_filter
+        .map(|classification| &doc.classification == classification)
+        .unwrap_or(true);
+
+    is_supported_document && is_supported_classification && matches_filter
+}
+
+fn write_gtins_sheet(
+    workbook: &mut Workbook,
+    sheet_name: &str,
+    items: &[&ProductItem],
+) -> Result<(), String> {
+    let worksheet = workbook
+        .add_worksheet()
+        .set_name(sheet_name)
+        .map_err(|e| e.to_string())?;
+
+    configure_sheet_layout(worksheet, &GTINS_HEADERS)?;
+    insert_logo_above_header(worksheet, &GTINS_HEADERS)?;
+
+    for (col, header) in GTINS_HEADERS.iter().enumerate() {
+        let header_format = build_header_format(col, GTINS_HEADERS.len());
+        worksheet
+            .write_string_with_format(HEADER_ROW, col as u16, *header, &header_format)
+            .map_err(|e| e.to_string())?;
+    }
+
+    let data_text_format = Format::new().set_border(FormatBorder::Thin);
+    let mut row = HEADER_ROW + 1;
+    for item in items {
+        worksheet
+            .write_string_with_format(row, 0, &item.description, &data_text_format)
+            .map_err(|e| e.to_string())?;
+        worksheet
+            .write_string_with_format(row, 1, &item.ncm, &data_text_format)
+            .map_err(|e| e.to_string())?;
+        worksheet
+            .write_string_with_format(row, 2, &item.cest, &data_text_format)
+            .map_err(|e| e.to_string())?;
+        worksheet
+            .write_string_with_format(row, 3, &item.gtin, &data_text_format)
+            .map_err(|e| e.to_string())?;
+        row += 1;
+    }
+
+    Ok(())
 }
 
 fn configure_sheet_layout(worksheet: &mut Worksheet, headers: &[&str]) -> Result<(), String> {
@@ -309,7 +470,11 @@ fn limit_description(description: &str, description_word_limit: Option<usize>) -
     if let Some(limit) = description_word_limit {
         let words: Vec<&str> = description.split_whitespace().collect();
         if words.len() > limit {
-            words.into_iter().take(limit).collect::<Vec<&str>>().join(" ")
+            words
+                .into_iter()
+                .take(limit)
+                .collect::<Vec<&str>>()
+                .join(" ")
         } else {
             description.to_string()
         }
@@ -494,8 +659,9 @@ fn parse_issue_date(date_str: &str) -> Option<chrono::NaiveDate> {
 mod tests {
     use super::*;
     use crate::classifier::DocumentClassification;
-    use crate::parser::{FiscalDocumentType, FiscalParty, ParsedFiscalDocument};
+    use crate::parser::{FiscalDocumentType, FiscalParty, ParsedFiscalDocument, ProductItem};
     use std::fs;
+    use std::io::Read;
     use std::time::{SystemTime, UNIX_EPOCH};
 
     #[test]
@@ -518,6 +684,7 @@ mod tests {
                 taker: None,
                 recipient: None,
                 sender: None,
+                product_items: vec![],
             },
         };
 
@@ -536,6 +703,7 @@ mod tests {
                 taker: None,
                 recipient: None,
                 sender: None,
+                product_items: vec![],
             },
         };
 
@@ -554,6 +722,7 @@ mod tests {
                 taker: None,
                 recipient: None,
                 sender: None,
+                product_items: vec![],
             },
         };
 
@@ -569,7 +738,7 @@ mod tests {
         let export_base = temp_dir.to_string_lossy().to_string();
         let docs = vec![doc1, doc2, doc3];
 
-        let result = generate_excel(&docs, &export_base, Some(2));
+        let result = generate_excel(&docs, &export_base, Some(2), GtinsReportOptions::disabled());
         assert!(result.is_ok());
         let final_path = result.unwrap();
 
@@ -577,6 +746,153 @@ mod tests {
         assert!(Path::new(&final_path).exists());
 
         let _ = fs::remove_file(&final_path);
+        let _ = fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn collects_gtins_only_from_supported_documents_with_composite_deduplication() {
+        let docs = vec![
+            classified_document(
+                DocumentClassification::Entrada,
+                FiscalDocumentType::Nfe,
+                vec![
+                    product(
+                        "Produto completo de descricao longa sem corte",
+                        "12345678",
+                        "1234567",
+                        "789100000001",
+                    ),
+                    product(
+                        "Produto completo de descricao longa sem corte",
+                        "12345678",
+                        "1234567",
+                        "789100000001",
+                    ),
+                    product(
+                        "Produto completo de descricao longa sem corte",
+                        "12345678",
+                        "1234567",
+                        "789100000002",
+                    ),
+                    product("Produto sem campos opcionais", "22222222", "", ""),
+                ],
+            ),
+            classified_document(
+                DocumentClassification::Saida,
+                FiscalDocumentType::Nfce,
+                vec![product(
+                    "Produto de saida",
+                    "33333333",
+                    "3333333",
+                    "789100000003",
+                )],
+            ),
+            classified_document(
+                DocumentClassification::Entrada,
+                FiscalDocumentType::Cte,
+                vec![product(
+                    "Produto de cte excluido",
+                    "44444444",
+                    "4444444",
+                    "789100000004",
+                )],
+            ),
+            classified_document(
+                DocumentClassification::SemCnpjIdentificado,
+                FiscalDocumentType::Nfe,
+                vec![product(
+                    "Produto sem cnpj excluido",
+                    "55555555",
+                    "5555555",
+                    "789100000005",
+                )],
+            ),
+        ];
+
+        let items = collect_unique_gtins_items(&docs, None);
+        let descriptions: Vec<&str> = items.iter().map(|item| item.description.as_str()).collect();
+
+        assert_eq!(
+            descriptions,
+            vec![
+                "Produto completo de descricao longa sem corte",
+                "Produto completo de descricao longa sem corte",
+                "Produto sem campos opcionais",
+                "Produto de saida",
+            ]
+        );
+        assert_eq!(items[1].gtin, "789100000002");
+        assert_eq!(items[2].cest, "");
+        assert_eq!(items[2].gtin, "");
+
+        let entrada_items =
+            collect_unique_gtins_items(&docs, Some(&DocumentClassification::Entrada));
+        let saida_items = collect_unique_gtins_items(&docs, Some(&DocumentClassification::Saida));
+
+        assert_eq!(entrada_items.len(), 3);
+        assert_eq!(saida_items.len(), 1);
+        assert_eq!(saida_items[0].description, "Produto de saida");
+    }
+
+    #[test]
+    fn writes_optional_gtins_sheets_according_to_options() {
+        let docs = vec![classified_document(
+            DocumentClassification::Entrada,
+            FiscalDocumentType::Nfe,
+            vec![product("Produto GTINS", "12345678", "", "789100000001")],
+        )];
+        let temp_dir = unique_temp_dir("gtins_sheet_options");
+        fs::create_dir_all(&temp_dir).unwrap();
+
+        let disabled_path = temp_dir.join("disabled.xlsx");
+        generate_excel(
+            &docs,
+            &disabled_path.to_string_lossy(),
+            None,
+            GtinsReportOptions::disabled(),
+        )
+        .unwrap();
+        let disabled_workbook = read_xlsx_entry(&disabled_path, "xl/workbook.xml");
+        assert!(!disabled_workbook.contains("GTINS"));
+
+        let unified_path = temp_dir.join("unified.xlsx");
+        generate_excel(
+            &docs,
+            &unified_path.to_string_lossy(),
+            Some(1),
+            GtinsReportOptions {
+                extract_gtins: true,
+                split_by_operation: false,
+            },
+        )
+        .unwrap();
+        let unified_workbook = read_xlsx_entry(&unified_path, "xl/workbook.xml");
+        let unified_strings = read_xlsx_entry(&unified_path, "xl/sharedStrings.xml");
+        assert!(unified_workbook.contains(r#"name="GTINS""#));
+        assert!(!unified_workbook.contains("GTINS Entradas"));
+        assert!(!unified_workbook.contains("GTINS Saidas"));
+        assert!(unified_strings.contains("Produto GTINS"));
+        assert!(unified_strings.contains("Descricao"));
+        assert!(unified_strings.contains("NCM"));
+        assert!(unified_strings.contains("CEST"));
+        assert!(unified_strings.contains("GTIN"));
+
+        let split_path = temp_dir.join("split.xlsx");
+        generate_excel(
+            &docs,
+            &split_path.to_string_lossy(),
+            None,
+            GtinsReportOptions {
+                extract_gtins: true,
+                split_by_operation: true,
+            },
+        )
+        .unwrap();
+        let split_workbook = read_xlsx_entry(&split_path, "xl/workbook.xml");
+        assert!(split_workbook.contains(r#"name="GTINS Entradas""#));
+        assert!(split_workbook.contains(r#"name="GTINS Saidas""#));
+        assert!(!split_workbook.contains(r#"name="GTINS""#));
+
         let _ = fs::remove_dir_all(&temp_dir);
     }
 
@@ -603,5 +919,60 @@ mod tests {
     #[test]
     fn embedded_report_logo_is_available() {
         assert!(!REPORT_LOGO_BYTES.is_empty());
+    }
+
+    fn product(description: &str, ncm: &str, cest: &str, gtin: &str) -> ProductItem {
+        ProductItem {
+            description: description.to_string(),
+            ncm: ncm.to_string(),
+            cest: cest.to_string(),
+            gtin: gtin.to_string(),
+        }
+    }
+
+    fn classified_document(
+        classification: DocumentClassification,
+        document_type: FiscalDocumentType,
+        product_items: Vec<ProductItem>,
+    ) -> ClassifiedDocument {
+        ClassifiedDocument {
+            classification,
+            document: ParsedFiscalDocument {
+                source_name: "test.xml".to_string(),
+                access_key: "access-key".to_string(),
+                document_type,
+                issue_date: Some("2026-04-10T10:00:00-03:00".to_string()),
+                document_number: "1".to_string(),
+                total_value: Some("150.50".to_string()),
+                cfops: vec!["5102".to_string()],
+                descriptions: vec!["Descricao principal".to_string()],
+                issuer: None,
+                taker: None,
+                recipient: None,
+                sender: None,
+                product_items,
+            },
+        }
+    }
+
+    fn unique_temp_dir(label: &str) -> std::path::PathBuf {
+        std::env::temp_dir().join(format!(
+            "gerador_relatorio_notas_{}_{}_{}",
+            label,
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ))
+    }
+
+    fn read_xlsx_entry(path: &Path, entry_name: &str) -> String {
+        let file = fs::File::open(path).unwrap();
+        let mut archive = zip::ZipArchive::new(file).unwrap();
+        let mut entry = archive.by_name(entry_name).unwrap();
+        let mut content = String::new();
+        entry.read_to_string(&mut content).unwrap();
+        content
     }
 }

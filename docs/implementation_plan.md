@@ -34,7 +34,7 @@ Este plano e macro e serve apenas como orientacao inicial. A arquitetura detalha
 
 ## 5. Classificacao
 
-- Validar e sanitizar CNPJ informado.
+- Validar e sanitizar CPF/CNPJ informado.
 - Classificar documentos em Entradas, Saidas ou Notas sem CNPJ identificado na operacao.
 - Detectar duplicados por chave de acesso e ignora-los.
 
@@ -45,11 +45,15 @@ Este plano e macro e serve apenas como orientacao inicial. A arquitetura detalha
 - Aplicar formatacao basica.
 - Gerar nome sugerido com os meses identificados nas datas das notas.
 
-## 7. Persistencia local
+## 7. Cache em sessao e preferencias
 
-- Salvar ultimo CNPJ usado.
-- Salvar ultima pasta de importacao.
-- Salvar ultima pasta de exportacao.
+- Manter cache em memoria apenas enquanto o app estiver aberto.
+- Identificar XMLs por hash do conteudo, inclusive XMLs internos de ZIP.
+- Reaproveitar XMLs ja processados para gerar novos relatorios sem reprocessamento.
+- Processar apenas XMLs novos ou com conteudo diferente.
+- Reclassificar documentos quando o CPF/CNPJ informado mudar.
+- Manter preferencias simples, como ultimo CPF/CNPJ e pastas, apenas em memoria.
+- Remover persistencia em `config.json`.
 
 ## 8. Validacao do MVP
 
@@ -58,3 +62,20 @@ Este plano e macro e serve apenas como orientacao inicial. A arquitetura detalha
 - Validar importacao por `.zip`.
 - Validar grandes volumes com progresso e interface responsiva.
 - Validar ausencia total de dados validos.
+
+## 9. Evolucao: extracao opcional de GTINS
+
+- Atualizar a arquitetura para incluir a extracao opcional de produtos de NF-e/NFC-e.
+- Incluir na interface os interruptores de GTINS, sempre iniciando desligados.
+- Extrair Descricao, NCM, CEST e GTIN dos itens de entrada e saida.
+- Deduplicar produtos pelo conjunto Descricao + NCM + CEST + GTIN.
+- Gerar aba unica `GTINS` ou abas `GTINS Entradas` e `GTINS Saidas` no mesmo Excel.
+- Validar desempenho com grandes volumes, incluindo mais de 30 mil XMLs e mais de 100 mil produtos.
+
+## 10. Evolucao: cancelamento e protecao de processamento
+
+- Desabilitar o botao de gerar relatorio enquanto houver processamento em andamento.
+- Impedir processamento duplicado por duplo clique.
+- Oferecer botao de cancelar processamento.
+- Preservar no cache os XMLs ja processados com sucesso quando o usuario cancelar.
+- Exibir modal de confirmacao ao fechar o app, avisando que o cache em memoria sera perdido.

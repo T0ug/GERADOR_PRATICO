@@ -151,12 +151,20 @@ h2 {
   min-width: 0;
 }
 
+.compact-panel {
+  padding: 16px;
+}
+
 .panel-heading {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 14px;
   margin-bottom: 16px;
+}
+
+.tight-heading {
+  margin-bottom: 12px;
 }
 
 .panel-heading-main {
@@ -363,6 +371,69 @@ h2 {
   font-size: 0.95rem;
   font-weight: 800;
   line-height: 1;
+}
+
+.toggle-row {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.toggle-row + .toggle-row {
+  margin-top: 12px;
+}
+
+.nested-toggle {
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.toggle-row input {
+  position: absolute;
+  opacity: 0;
+}
+
+.toggle-control {
+  position: relative;
+  width: 42px;
+  height: 24px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface-muted);
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease;
+}
+
+.toggle-control::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: 0 2px 5px rgba(52, 36, 37, 0.2);
+  transition: transform 140ms ease;
+}
+
+.toggle-row input:checked + .toggle-control {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.toggle-row input:checked + .toggle-control::after {
+  transform: translateX(18px);
+}
+
+.toggle-row input:focus-visible + .toggle-control {
+  outline: 2px solid rgba(181, 34, 45, 0.28);
+  outline-offset: 2px;
 }
 
 .progress-track {

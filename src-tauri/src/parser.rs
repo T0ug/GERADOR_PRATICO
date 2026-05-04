@@ -21,6 +21,15 @@ pub struct ParsedFiscalDocument {
     pub taker: Option<FiscalParty>,
     pub recipient: Option<FiscalParty>,
     pub sender: Option<FiscalParty>,
+    pub product_items: Vec<ProductItem>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct ProductItem {
+    pub description: String,
+    pub ncm: String,
+    pub cest: String,
+    pub gtin: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -94,7 +103,8 @@ fn parse_nfe(
         source_name,
         access_key: access_key_from_id(inf_nfe),
         document_type,
-        issue_date: ide.and_then(|node| child_text(node, "dhEmi").or_else(|| child_text(node, "dEmi"))),
+        issue_date: ide
+            .and_then(|node| child_text(node, "dhEmi").or_else(|| child_text(node, "dEmi"))),
         document_number,
         total_value: total.and_then(|node| child_text(node, "vNF")),
         cfops: descendants_text(inf_nfe, "CFOP"),
@@ -103,6 +113,7 @@ fn parse_nfe(
         taker: None,
         recipient: child(inf_nfe, "dest").and_then(party_from_node),
         sender: None,
+        product_items: nfe_product_items(inf_nfe),
     })
 }
 
@@ -119,7 +130,8 @@ fn parse_cte(
         source_name,
         access_key: access_key_from_id(inf_cte),
         document_type: FiscalDocumentType::Cte,
-        issue_date: ide.and_then(|node| child_text(node, "dhEmi").or_else(|| child_text(node, "dEmi"))),
+        issue_date: ide
+            .and_then(|node| child_text(node, "dhEmi").or_else(|| child_text(node, "dEmi"))),
         document_number,
         total_value: child(inf_cte, "vPrest")
             .and_then(|node| child_text(node, "vTPrest"))
@@ -130,6 +142,7 @@ fn parse_cte(
         taker: cte_taker(inf_cte),
         recipient: child(inf_cte, "dest").and_then(party_from_node),
         sender: child(inf_cte, "rem").and_then(party_from_node),
+        product_items: Vec::new(),
     })
 }
 
@@ -175,6 +188,38 @@ fn cte_descriptions(inf_cte: roxmltree::Node<'_, '_>) -> Vec<String> {
     }
 
     descendants_text(inf_cte, "proPred")
+}
+
+fn nfe_product_items(inf_nfe: roxmltree::Node<'_, '_>) -> Vec<ProductItem> {
+    inf_nfe
+        .children()
+        .filter(|node| has_name(*node, "det"))
+        .filter_map(|det| child(det, "prod"))
+        .filter_map(product_item_from_prod)
+        .collect()
+}
+
+fn product_item_from_prod(prod: roxmltree::Node<'_, '_>) -> Option<ProductItem> {
+    let description = child_text(prod, "xProd")?;
+
+    Some(ProductItem {
+        description,
+        ncm: child_text(prod, "NCM").unwrap_or_default(),
+        cest: child_text(prod, "CEST").unwrap_or_default(),
+        gtin: gtin_from_prod(prod),
+    })
+}
+
+fn gtin_from_prod(prod: roxmltree::Node<'_, '_>) -> String {
+    child_text(prod, "cEAN")
+        .filter(|value| is_real_gtin(value))
+        .or_else(|| child_text(prod, "cEANTrib").filter(|value| is_real_gtin(value)))
+        .unwrap_or_default()
+}
+
+fn is_real_gtin(value: &str) -> bool {
+    let normalized = value.trim();
+    !normalized.is_empty() && !normalized.eq_ignore_ascii_case("SEM GTIN")
 }
 
 fn cte_taker(inf_cte: roxmltree::Node<'_, '_>) -> Option<FiscalParty> {
@@ -243,12 +288,27 @@ mod tests {
         let parsed = parse_fiscal_document("nfe.xml", VALID_NFE).unwrap();
 
         assert_eq!(parsed.document_type, FiscalDocumentType::Nfe);
-        assert_eq!(parsed.access_key, "35260412345678000190550010000001231000001234");
+        assert_eq!(
+            parsed.access_key,
+            "35260412345678000190550010000001231000001234"
+        );
         assert_eq!(parsed.document_number, "123");
-        assert_eq!(parsed.issue_date.as_deref(), Some("2026-04-24T10:30:00-03:00"));
+        assert_eq!(
+            parsed.issue_date.as_deref(),
+            Some("2026-04-24T10:30:00-03:00")
+        );
         assert_eq!(parsed.total_value.as_deref(), Some("150.75"));
         assert_eq!(parsed.cfops, vec!["5102"]);
         assert_eq!(parsed.descriptions, vec!["Produto Teste"]);
+        assert_eq!(
+            parsed.product_items,
+            vec![ProductItem {
+                description: "Produto Teste".to_string(),
+                ncm: "12345678".to_string(),
+                cest: "1200100".to_string(),
+                gtin: "7891234567895".to_string(),
+            }]
+        );
         assert_eq!(
             parsed.issuer,
             Some(FiscalParty {
@@ -272,11 +332,15 @@ mod tests {
         let parsed = parse_fiscal_document("cte.xml", VALID_CTE).unwrap();
 
         assert_eq!(parsed.document_type, FiscalDocumentType::Cte);
-        assert_eq!(parsed.access_key, "35260412345678000190570010000004561000004567");
+        assert_eq!(
+            parsed.access_key,
+            "35260412345678000190570010000004561000004567"
+        );
         assert_eq!(parsed.document_number, "456");
         assert_eq!(parsed.total_value.as_deref(), Some("320.00"));
         assert_eq!(parsed.cfops, vec!["5353"]);
         assert_eq!(parsed.descriptions, vec!["Servico de transporte"]);
+        assert!(parsed.product_items.is_empty());
         assert_eq!(
             parsed.taker,
             Some(FiscalParty {
@@ -305,11 +369,34 @@ mod tests {
         let parsed = parse_fiscal_document("entrada.xml", REAL_NFE_EXAMPLE).unwrap();
 
         assert_eq!(parsed.document_type, FiscalDocumentType::Nfe);
-        assert_eq!(parsed.access_key, "26260120554816000174550010000223161222456849");
+        assert_eq!(
+            parsed.access_key,
+            "26260120554816000174550010000223161222456849"
+        );
         assert_eq!(parsed.document_number, "22316");
         assert_eq!(parsed.total_value.as_deref(), Some("4336.54"));
         assert_eq!(parsed.cfops, vec!["5929", "5929"]);
-        assert_eq!(parsed.descriptions, vec!["DIESEL S10", "ARLA32 - IPE ARLA 32 - 20L"]);
+        assert_eq!(
+            parsed.descriptions,
+            vec!["DIESEL S10", "ARLA32 - IPE ARLA 32 - 20L"]
+        );
+        assert_eq!(
+            parsed.product_items,
+            vec![
+                ProductItem {
+                    description: "DIESEL S10".to_string(),
+                    ncm: "27101921".to_string(),
+                    cest: "0600605".to_string(),
+                    gtin: String::new(),
+                },
+                ProductItem {
+                    description: "ARLA32 - IPE ARLA 32 - 20L".to_string(),
+                    ncm: "31021010".to_string(),
+                    cest: "0600700".to_string(),
+                    gtin: String::new(),
+                },
+            ]
+        );
         assert_eq!(
             parsed.recipient,
             Some(FiscalParty {
@@ -324,11 +411,15 @@ mod tests {
         let parsed = parse_fiscal_document("CTE SAIDA.xml", REAL_CTE_EXAMPLE).unwrap();
 
         assert_eq!(parsed.document_type, FiscalDocumentType::Cte);
-        assert_eq!(parsed.access_key, "15260132747045000110570010000001641300000804");
+        assert_eq!(
+            parsed.access_key,
+            "15260132747045000110570010000001641300000804"
+        );
         assert_eq!(parsed.document_number, "164");
         assert_eq!(parsed.total_value.as_deref(), Some("6310.70"));
         assert_eq!(parsed.cfops, vec!["5352"]);
         assert_eq!(parsed.descriptions, vec!["BOI PARA ABATE"]);
+        assert!(parsed.product_items.is_empty());
         assert_eq!(
             parsed.issuer,
             Some(FiscalParty {
@@ -355,7 +446,8 @@ mod tests {
 
     #[test]
     fn unsupported_xml_returns_warning() {
-        let warning = parse_fiscal_document("outro.xml", "<root><valor>1</valor></root>").unwrap_err();
+        let warning =
+            parse_fiscal_document("outro.xml", "<root><valor>1</valor></root>").unwrap_err();
 
         assert_eq!(warning.source_name, "outro.xml");
         assert_eq!(warning.reason, ParseWarningReason::UnsupportedDocumentType);
@@ -363,7 +455,8 @@ mod tests {
 
     #[test]
     fn malformed_xml_returns_warning() {
-        let warning = parse_fiscal_document("quebrado.xml", "<nfeProc><NFe></nfeProc>").unwrap_err();
+        let warning =
+            parse_fiscal_document("quebrado.xml", "<nfeProc><NFe></nfeProc>").unwrap_err();
 
         assert_eq!(warning.source_name, "quebrado.xml");
         assert_eq!(warning.reason, ParseWarningReason::MalformedXml);
@@ -375,6 +468,29 @@ mod tests {
 
         assert_eq!(warning.source_name, "evento.xml");
         assert_eq!(warning.reason, ParseWarningReason::IgnoredEventDocument);
+    }
+
+    #[test]
+    fn nfe_product_items_keep_optional_fields_blank_and_skip_missing_description() {
+        let parsed = parse_fiscal_document("nfe.xml", NFE_WITH_OPTIONAL_PRODUCT_FIELDS).unwrap();
+
+        assert_eq!(
+            parsed.product_items,
+            vec![
+                ProductItem {
+                    description: "Produto sem opcionais".to_string(),
+                    ncm: String::new(),
+                    cest: String::new(),
+                    gtin: String::new(),
+                },
+                ProductItem {
+                    description: "Produto com GTIN tributavel".to_string(),
+                    ncm: "22021000".to_string(),
+                    cest: String::new(),
+                    gtin: "7890000000001".to_string(),
+                },
+            ]
+        );
     }
 
     const VALID_NFE: &str = r#"
@@ -396,8 +512,11 @@ mod tests {
               </dest>
               <det nItem="1">
                 <prod>
+                  <cEAN>7891234567895</cEAN>
                   <CFOP>5102</CFOP>
                   <xProd>Produto Teste</xProd>
+                  <NCM>12345678</NCM>
+                  <CEST>1200100</CEST>
                 </prod>
               </det>
               <total>
@@ -405,6 +524,39 @@ mod tests {
                   <vNF>150.75</vNF>
                 </ICMSTot>
               </total>
+            </infNFe>
+          </NFe>
+        </nfeProc>
+    "#;
+
+    const NFE_WITH_OPTIONAL_PRODUCT_FIELDS: &str = r#"
+        <nfeProc>
+          <NFe>
+            <infNFe Id="NFe35260412345678000190550010000001231000001234">
+              <ide>
+                <mod>55</mod>
+                <nNF>123</nNF>
+              </ide>
+              <det nItem="1">
+                <prod>
+                  <xProd>Produto sem opcionais</xProd>
+                  <cEAN>SEM GTIN</cEAN>
+                </prod>
+              </det>
+              <det nItem="2">
+                <prod>
+                  <NCM>01012100</NCM>
+                  <cEAN>7899999999999</cEAN>
+                </prod>
+              </det>
+              <det nItem="3">
+                <prod>
+                  <xProd>Produto com GTIN tributavel</xProd>
+                  <NCM>22021000</NCM>
+                  <cEAN>SEM GTIN</cEAN>
+                  <cEANTrib>7890000000001</cEANTrib>
+                </prod>
+              </det>
             </infNFe>
           </NFe>
         </nfeProc>

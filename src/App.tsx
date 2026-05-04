@@ -4,6 +4,7 @@ import { listen } from "@tauri-apps/api/event";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { CnpjInput } from "./components/CnpjInput";
 import { DescriptionMode, DescriptionOptions } from "./components/DescriptionOptions";
+import { GtinsOptions } from "./components/GtinsOptions";
 import { ImportSelector } from "./components/ImportSelector";
 import { ProgressPanel } from "./components/ProgressPanel";
 import { ResultDialog } from "./components/ResultDialog";
@@ -37,6 +38,8 @@ function App() {
   const [zipPaths, setZipPaths] = useState<string[]>([]);
   const [descriptionMode, setDescriptionMode] = useState<DescriptionMode>("complete");
   const [wordLimit, setWordLimit] = useState(8);
+  const [extractGtins, setExtractGtins] = useState(false);
+  const [splitGtinsByOperation, setSplitGtinsByOperation] = useState(false);
   const [lastImportDir, setLastImportDir] = useState("");
   const [lastExportDir, setLastExportDir] = useState("");
   const [configLoaded, setConfigLoaded] = useState(false);
@@ -189,6 +192,8 @@ function App() {
           export_path: "",
           description_mode: descriptionMode === "complete" ? "complete" : "limited",
           word_limit: descriptionMode === "limited" ? wordLimit : null,
+          extract_gtins: extractGtins,
+          split_gtins_by_operation: extractGtins ? splitGtinsByOperation : false,
         },
       });
 
@@ -287,6 +292,18 @@ function App() {
             percent={progress.percent}
             current={progress.current}
             progressTotal={progress.total}
+          />
+
+          <GtinsOptions
+            extractGtins={extractGtins}
+            splitGtinsByOperation={splitGtinsByOperation}
+            onExtractGtinsChange={(value) => {
+              setExtractGtins(value);
+              if (!value) {
+                setSplitGtinsByOperation(false);
+              }
+            }}
+            onSplitGtinsByOperationChange={setSplitGtinsByOperation}
           />
 
           <button

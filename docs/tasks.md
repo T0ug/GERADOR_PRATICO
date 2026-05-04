@@ -21,6 +21,327 @@
 - T015 concluida e aprovada.
 - T016 concluida e aprovada.
 - T017 concluida e aprovada.
+- T018 concluida e aprovada com ressalvas.
+- T019 concluida e aprovada.
+- T020 concluida e aprovada.
+- T021 concluida e aprovada.
+- T022 concluida e aprovada.
+- T023 concluida e validada operacionalmente pelo usuario.
+
+---
+
+# Task
+
+## Identificacao
+
+- ID: T024
+- Nome: Atualizar arquitetura para cache em sessao, CPF/CNPJ e cancelamento
+- Fase: Architecture
+- Agente responsavel: Architect
+
+---
+
+## Objetivo
+
+Definir como o aplicativo deve incorporar cache em memoria durante a sessao, suporte a CPF alem de CNPJ, cancelamento de processamento, bloqueio de duplo clique no botao de gerar relatorio e remocao da persistencia em `config.json`.
+
+---
+
+## Contexto
+
+A funcionalidade de GTINS foi concluida e validada. O usuario agora quer reduzir reprocessamento em grandes volumes, especialmente em cenarios com mais de 100 mil XMLs, permitindo gerar relatorios novamente sem processar tudo de novo enquanto o app estiver aberto.
+
+Tambem foi confirmado que o app deve aceitar CPF e CNPJ, manter preferencias apenas em memoria, cancelar processamento sem descartar XMLs ja processados com sucesso e avisar ao fechar que o cache sera perdido.
+
+---
+
+## Entradas
+
+- `docs/idea.md`
+- `docs/scope.md`
+- `docs/non_goals.md`
+- `docs/decision_log.md`
+- `docs/implementation_plan.md`
+- `docs/architecture.md`
+- `src-tauri/src/importer.rs`
+- `src-tauri/src/parser.rs`
+- `src-tauri/src/classifier.rs`
+- `src-tauri/src/deduplicator.rs`
+- `src-tauri/src/commands.rs`
+- `src-tauri/src/config.rs`
+- `src/App.tsx`
+- componentes React atuais
+
+---
+
+## Escopo
+
+- Atualizar a arquitetura para cache em memoria valido apenas durante a sessao do app.
+- Definir como calcular e usar hash de conteudo para XMLs diretos e XMLs internos de ZIP.
+- Definir como reaproveitar parsing/importacao ja processados e processar apenas XMLs novos/diferentes.
+- Definir como reclassificar documentos quando o CPF/CNPJ informado mudar sem reaproveitar classificacoes antigas.
+- Definir como suportar CPF e CNPJ no modelo de validacao e classificacao.
+- Definir como remover a persistencia em `config.json` e manter ultimo CPF/CNPJ e pastas apenas em memoria.
+- Definir como impedir duplo clique/processamento concorrente.
+- Definir como cancelar processamento preservando no cache os XMLs processados com sucesso.
+- Definir como exibir modal de confirmacao ao fechar o app avisando que o cache sera perdido.
+- Definir as proximas tasks de execucao pequenas e testaveis.
+
+---
+
+## Fora de escopo (CRITICO)
+
+- Nao implementar codigo nesta task.
+- Nao alterar parser, commands, frontend ou config nesta task.
+- Nao persistir cache em disco.
+- Nao armazenar dados dentro do executavel.
+- Nao criar banco de dados.
+- Nao alterar regras fiscais alem do suporte a CPF/CNPJ ja confirmado.
+
+---
+
+## Saidas esperadas
+
+- `docs/architecture.md` atualizado com a arquitetura de cache em sessao, CPF/CNPJ e cancelamento.
+- `docs/decision_log.md` atualizado se houver novas decisoes arquiteturais.
+- `docs/tasks.md` atualizado com tasks de execucao derivadas.
+- `docs/project_status.md` e `docs/handoff.md` preparados para a proxima etapa da pipeline.
+
+---
+
+## Criterios de aceite
+
+- A arquitetura explica o ciclo de vida do cache em memoria.
+- A arquitetura explica como hashes de XMLs diretos e internos de ZIP serao usados.
+- A arquitetura explica como evitar reprocessamento e ainda permitir reclassificacao por CPF/CNPJ.
+- A arquitetura cobre cancelamento cooperativo e preservacao parcial do cache.
+- A arquitetura cobre bloqueio de duplo clique/processamento concorrente.
+- A arquitetura cobre remocao do `config.json` e preferencias apenas em memoria.
+- A arquitetura cobre modal de fechamento com perda do cache.
+- As proximas tasks de execucao ficam especificas, testaveis e alinhadas ao escopo.
+
+---
+
+## Dependencias
+
+- T023 concluida.
+- Escopo da nova demanda confirmado pelo usuario.
+
+---
+
+## Restricoes
+
+- `docs/` permanece como fonte de verdade.
+- A arquitetura deve manter processamento pesado no Rust.
+- O frontend nao deve receber XML bruto nem massas fiscais completas.
+- O cache deve ser apenas em memoria.
+- O app deve continuar totalmente local e offline.
+
+---
+
+## Impacto no sistema
+
+- Afeta contrato de processamento entre UI e backend.
+- Afeta importacao, parsing, classificacao, deduplicacao e geracao do relatorio.
+- Afeta persistencia atual.
+- Afeta UX de processamento, cancelamento e fechamento.
+
+---
+
+## Estrategia de implementacao
+
+- Primeiro atualizar arquitetura e registrar decisoes.
+- Depois dividir execucao em tasks pequenas: documento CPF/CNPJ, cache/hash, cancelamento, remocao de config, UI de fechamento e protecao de processamento.
+- Manter validacoes automatizadas e operacionais proporcionais ao risco.
+
+---
+
+## Plano de validacao
+
+- Validar a arquitetura contra `docs/scope.md` e `docs/non_goals.md`.
+- Confirmar que nao ha persistencia involuntaria.
+- Confirmar que o desenho atende grandes volumes e cancelamento sem perder progresso processado.
+
+---
+
+## Artefatos a atualizar
+
+- `docs/architecture.md`
+- `docs/decision_log.md`
+- `docs/tasks.md`
+- `docs/project_status.md`
+- `docs/handoff.md`
+
+---
+
+## Observacoes
+
+- Esta task e de arquitetura, nao de implementacao.
+
+---
+
+## Status
+
+- [x] Nao iniciada
+- [x] Em andamento
+- [ ] Concluida
+- [ ] Bloqueada
+
+---
+
+# Task
+
+## Identificacao
+
+- ID: T023
+- Nome: Executar validacao operacional da extracao opcional de GTINS
+- Fase: Execution
+- Agente responsavel: Executor
+
+---
+
+## Objetivo
+
+Validar operacionalmente a funcionalidade opcional de GTINS no fluxo do aplicativo, produzindo evidencia reproduzivel de que as abas `GTINS`, `GTINS Entradas` e `GTINS Saidas` sao geradas conforme o escopo.
+
+---
+
+## Contexto
+
+A T020 extraiu itens de produto no parser, a T021 adicionou os interruptores e o contrato Tauri, e a T022 gerou as abas opcionais no Excel. Todas foram aprovadas. Esta task verifica o comportamento ponta a ponta da evolucao de GTINS antes de considerar o incremento operacionalmente fechado.
+
+---
+
+## Entradas
+
+- `docs/scope.md`
+- `docs/non_goals.md`
+- `docs/architecture.md`
+- `docs/decision_log.md`
+- `docs/review_report.md`
+- `src-tauri/src/report.rs`
+- `src-tauri/src/commands.rs`
+- XMLs de exemplo em `exemplos_xml/`, se aplicaveis
+- builds e testes automatizados existentes
+
+---
+
+## Escopo
+
+- Validar que o fluxo com GTINS desligado continua gerando Excel sem abas de GTINS.
+- Validar que GTINS ligado sem separacao gera aba `GTINS`.
+- Validar que GTINS ligado com separacao gera abas `GTINS Entradas` e `GTINS Saidas`.
+- Validar que as abas de GTINS contem apenas `Descricao`, `NCM`, `CEST` e `GTIN`.
+- Validar que produtos duplicados pela chave composta aparecem uma unica vez.
+- Validar que produtos com ao menos um campo diferente aparecem em linhas separadas.
+- Validar que CT-e e notas sem CNPJ identificado nao entram nas abas de GTINS.
+- Validar que produtos sem CEST ou GTIN aparecem com campo em branco.
+- Validar que a descricao de GTINS nao sofre limite de palavras.
+- Registrar evidencia objetiva e reproduzivel da validacao.
+- Se houver massa real ou sinteticamente preparada suficiente, validar comportamento com volume grande.
+
+---
+
+## Fora de escopo (CRITICO)
+
+- Nao implementar nova funcionalidade.
+- Nao alterar parser, classificacao, UI ou geracao do Excel, salvo se a validacao revelar um bug e uma nova task corretiva for criada.
+- Nao mudar regras fiscais ou criterios de deduplicacao.
+- Nao criar novo formato de relatorio.
+- Nao considerar esta task como empacotamento final do executavel.
+
+---
+
+## Saidas esperadas
+
+- Evidencia documentada da validacao operacional de GTINS.
+- Registro claro dos cenarios executados e seus resultados.
+- Confirmacao se a funcionalidade esta apta para uso operacional ou se ha bloqueios.
+
+---
+
+## Criterios de aceite
+
+- Existe evidencia reproduzivel para GTINS desligado, GTINS em aba unica e GTINS em abas separadas.
+- A estrutura das abas de GTINS e conferida contra o escopo.
+- A deduplicacao por Descricao + NCM + CEST + GTIN e conferida em resultado gerado.
+- Exclusoes de CT-e e notas sem CNPJ identificado sao conferidas.
+- Campos em branco para CEST/GTIN sao conferidos.
+- O limite de palavras da descricao principal nao afeta a descricao de GTINS.
+- `cargo test` passa.
+- `cargo build` passa.
+- `npm run test` passa.
+- `npm run build` passa.
+- Achados, limitacoes ou bloqueios ficam registrados em `docs/handoff.md` e `docs/project_status.md`.
+
+---
+
+## Dependencias
+
+- T020 aprovada.
+- T021 aprovada.
+- T022 aprovada.
+
+---
+
+## Restricoes
+
+- Usar `docs/` como fonte de verdade.
+- Tratar a task como validacao operacional, nao como implementacao.
+- Se for necessario criar dados sinteticos para validar volume, registrar claramente como foram gerados e o que eles representam.
+- Se volume grande real nao estiver disponivel, registrar a limitacao sem expandir escopo.
+
+---
+
+## Impacto no sistema
+
+- Nao deve alterar comportamento do sistema.
+- Pode gerar artefatos de evidencia em `docs/`.
+- Pode revelar bugs que deverao virar novas tasks.
+
+---
+
+## Estrategia de implementacao
+
+- Preparar cenarios de validacao baseados no escopo de GTINS.
+- Executar os cenarios por testes automatizados existentes e, quando viavel, por geracao real de Excel com dados representativos.
+- Inspecionar o resultado gerado para confirmar nomes de abas, colunas e linhas esperadas.
+- Registrar evidencias e conclusao operacional.
+
+---
+
+## Plano de validacao
+
+- Rodar a bateria automatizada completa.
+- Gerar ou inspecionar arquivos Excel resultantes para os tres modos de GTINS.
+- Conferir manualmente ou por inspecao de arquivo `.xlsx` os nomes das abas e cabecalhos.
+- Conferir cenarios de deduplicacao e exclusao.
+- Registrar resultados em handoff e status do projeto.
+
+---
+
+## Artefatos a atualizar
+
+- `docs/handoff.md`
+- `docs/project_status.md`
+- `docs/tasks.md`
+- `docs/review_report.md` se aplicavel ao fechamento
+- artefato de evidencias em `docs/`, se criado durante a validacao
+
+---
+
+## Observacoes
+
+- Esta task nao substitui testes automatizados; ela complementa a aprovacao tecnica da T022 com evidencia operacional.
+
+---
+
+## Status
+
+- [x] Nao iniciada
+- [x] Em andamento
+- [x] Concluida
+- [ ] Bloqueada
 
 ---
 
@@ -171,8 +492,6 @@ Depois da validacao manual da T016, o usuario confirmou que os ajustes funcionar
 - [x] Concluida
 - [ ] Bloqueada
 
----
-
 # Task
 
 ## Identificacao
@@ -307,6 +626,588 @@ Depois de validar o fluxo principal e definir a identidade visual como prioridad
 ## Status
 
 - [ ] Nao iniciada
+- [x] Em andamento
+- [x] Concluida
+- [ ] Bloqueada
+
+---
+
+# Task
+
+## Identificacao
+
+- ID: T019
+- Nome: Atualizar arquitetura para extracao opcional de GTINS
+- Fase: Architecture
+- Agente responsavel: Architect
+
+---
+
+## Objetivo
+
+Definir como a extracao opcional de GTINS sera incorporada ao fluxo existente do aplicativo sem implementar codigo ainda.
+
+---
+
+## Contexto
+
+O usuario solicitou uma evolucao do relatorio atual: ao habilitar a opcao `Extrair GTINS tambem?`, o mesmo Excel deve receber aba(s) adicionais com produtos de NF-e/NFC-e classificados como entradas ou saidas.
+
+A descoberta da funcionalidade foi concluida e registrada em `docs/scope.md`, `docs/non_goals.md`, `docs/implementation_plan.md` e `docs/decision_log.md`.
+
+Antes da implementacao, a arquitetura precisa definir como os itens de produto serao extraidos, transportados pelo pipeline, deduplicados e escritos no Excel, considerando volumes grandes.
+
+---
+
+## Entradas
+
+- `docs/idea.md`
+- `docs/scope.md`
+- `docs/non_goals.md`
+- `docs/decision_log.md`
+- `docs/implementation_plan.md`
+- `docs/architecture.md`
+- `src-tauri/src/parser.rs`
+- `src-tauri/src/classifier.rs`
+- `src-tauri/src/report.rs`
+- `src-tauri/src/commands.rs`
+- `src/App.tsx`
+
+---
+
+## Escopo
+
+- Atualizar a arquitetura para representar a extracao opcional de GTINS.
+- Definir o modelo de dados necessario para itens de produto com Descricao, NCM, CEST e GTIN.
+- Definir onde a opcao de GTINS entra no contrato entre frontend e backend.
+- Definir como a separacao entre aba unica `GTINS` e abas `GTINS Entradas`/`GTINS Saidas` sera representada.
+- Definir a estrategia de deduplicacao por Descricao + NCM + CEST + GTIN.
+- Definir como preservar desempenho para mais de 30 mil XMLs e mais de 100 mil produtos.
+- Definir quais proximas tasks de execucao devem ser criadas apos a arquitetura.
+
+---
+
+## Fora de escopo (CRITICO)
+
+- Nao implementar codigo.
+- Nao alterar parser, report, commands ou frontend nesta task.
+- Nao incluir CT-e na extracao de GTINS.
+- Nao incluir notas sem CNPJ identificado na extracao de GTINS.
+- Nao persistir estado dos interruptores.
+- Nao criar arquivo Excel separado para GTINS.
+- Nao adicionar colunas alem de Descricao, NCM, CEST e GTIN.
+
+---
+
+## Saidas esperadas
+
+- `docs/architecture.md` atualizado com a arquitetura da extracao opcional de GTINS.
+- `docs/decision_log.md` atualizado se houver novas decisoes arquiteturais.
+- `docs/tasks.md` atualizado com tasks de execucao especificas e testaveis para implementar a funcionalidade.
+- `docs/project_status.md` e `docs/handoff.md` preparados para a proxima etapa da pipeline.
+
+---
+
+## Criterios de aceite
+
+- A arquitetura explica claramente como os GTINS entram no fluxo existente.
+- A arquitetura cobre extracao, classificacao por operacao, deduplicacao e geracao das abas.
+- A arquitetura registra limites e cuidados de desempenho para grandes volumes.
+- As restricoes e nao objetivos confirmados pelo usuario continuam preservados.
+- As proximas tasks de execucao estao delimitadas, testaveis e alinhadas aos artefatos.
+
+---
+
+## Dependencias
+
+- Descoberta da funcionalidade de GTINS confirmada pelo usuario.
+- T018 deve ser validada antes de iniciar nova execucao ou mudanca arquitetural formal que dependa do estado final do relatorio.
+
+---
+
+## Restricoes
+
+- `docs/` permanece como fonte de verdade.
+- A arquitetura deve respeitar React como UI e Rust/Tauri como processamento pesado.
+- O frontend nao deve processar XML bruto nem receber grandes massas fiscais.
+- A solucao deve continuar totalmente local e offline.
+
+---
+
+## Impacto no sistema
+
+- Afeta o contrato UI/backend.
+- Afeta o parser ou modelo normalizado para expor itens de produtos.
+- Afeta o comando de geracao do relatorio.
+- Afeta o modulo de Excel para criar aba(s) adicionais.
+- Afeta a interface principal com novos interruptores.
+
+---
+
+## Estrategia de implementacao
+
+- Primeiro atualizar a arquitetura e registrar decisoes tecnicas.
+- Depois dividir a execucao em tasks pequenas, separando UI/contrato, extracao de dados, deduplicacao e escrita no Excel quando fizer sentido.
+- Manter validacao automatizada no backend para deduplicacao e geracao das abas de GTINS.
+
+---
+
+## Plano de validacao
+
+- Validar a arquitetura contra `docs/scope.md` e `docs/non_goals.md`.
+- Confirmar que nao ha conflito com a T018 e com o fluxo atual de relatorio.
+- Revisar se os criterios de desempenho foram contemplados.
+
+---
+
+## Artefatos a atualizar
+
+- `docs/architecture.md`
+- `docs/decision_log.md`
+- `docs/tasks.md`
+- `docs/project_status.md`
+- `docs/handoff.md`
+
+---
+
+## Observacoes
+
+- Esta task e de arquitetura, nao de implementacao.
+- A descoberta confirmou que os interruptores sempre iniciam desligados.
+- A descoberta confirmou que a deduplicacao usa o conjunto completo Descricao + NCM + CEST + GTIN.
+
+---
+
+## Status
+
+- [x] Nao iniciada
+- [x] Em andamento
+- [x] Concluida
+- [ ] Bloqueada
+
+---
+
+# Task
+
+## Identificacao
+
+- ID: T020
+- Nome: Implementar modelo e parser de itens para GTINS
+- Fase: Execution
+- Agente responsavel: Executor
+
+---
+
+## Objetivo
+
+Estender o modelo normalizado e o parser fiscal para extrair itens de produto de NF-e/NFC-e com Descricao, NCM, CEST e GTIN, sem alterar a geracao do Excel ainda.
+
+---
+
+## Contexto
+
+A arquitetura da T019 definiu que a extracao opcional de GTINS deve usar a abordagem de estender `ParsedFiscalDocument` com uma lista de itens de produto. Essa task prepara os dados necessarios para etapas posteriores.
+
+---
+
+## Entradas
+
+- `docs/scope.md`
+- `docs/non_goals.md`
+- `docs/architecture.md`
+- `docs/decision_log.md`
+- `src-tauri/src/parser.rs`
+- XMLs de exemplo em `exemplos_xml/`
+
+---
+
+## Escopo
+
+- Criar estrutura normalizada de item de produto para GTINS.
+- Adicionar lista de itens de produto em `ParsedFiscalDocument`.
+- Extrair um item por `<det><prod>` em NF-e/NFC-e.
+- Preencher Descricao, NCM, CEST e GTIN.
+- Manter CEST, NCM e GTIN ausentes como campo em branco.
+- Ignorar item sem descricao na lista de GTINS.
+- Manter lista vazia para CT-e.
+- Atualizar testes do parser e fixtures existentes conforme necessario.
+
+---
+
+## Fora de escopo (CRITICO)
+
+- Nao alterar interface React.
+- Nao alterar contrato Tauri.
+- Nao gerar abas de GTINS no Excel.
+- Nao alterar classificacao.
+- Nao persistir opcoes ou produtos.
+- Nao incluir CT-e na extracao de GTINS.
+
+---
+
+## Saidas esperadas
+
+- Parser passa a produzir itens de produto para NF-e/NFC-e.
+- CT-e continua valido e sem itens de GTINS.
+- Testes cobrem extracao de produto, campos opcionais ausentes e CT-e sem produtos.
+
+---
+
+## Criterios de aceite
+
+- NF-e/NFC-e com produtos gera `product_items` com Descricao, NCM, CEST e GTIN.
+- Produto sem CEST ou GTIN continua presente com campo em branco.
+- Produto sem descricao nao entra em `product_items`.
+- CT-e retorna `product_items` vazio.
+- `cargo test` passa.
+- `cargo build` passa.
+- `npm run test` passa.
+- `npm run build` passa.
+
+---
+
+## Dependencias
+
+- T019 concluida.
+
+---
+
+## Restricoes
+
+- Manter processamento fiscal pesado no Rust.
+- Extrair apenas os quatro campos necessarios para GTINS.
+- Evitar reprocessamento posterior de XML para obter produtos.
+
+---
+
+## Impacto no sistema
+
+- Afeta `parser.rs` e testes que constroem `ParsedFiscalDocument`.
+- Pode exigir ajustes em testes de `report`, `classifier` e `deduplicator` por mudanca estrutural no modelo.
+
+---
+
+## Estrategia de implementacao
+
+- Adicionar a estrutura de produto no parser.
+- Implementar extracao em NF-e/NFC-e no ponto onde `xProd` ja e lido.
+- Ajustar construtores de teste para incluir `product_items`.
+
+---
+
+## Plano de validacao
+
+- Criar ou atualizar testes unitarios no Rust.
+- Executar builds e testes de Rust e frontend para garantir compatibilidade.
+
+---
+
+## Artefatos a atualizar
+
+- `src-tauri/src/parser.rs`
+- testes Rust afetados
+- `docs/handoff.md`
+- `docs/project_status.md`
+- `docs/tasks.md`
+
+---
+
+## Observacoes
+
+- Esta task prepara dados, mas nao expõe ainda a opcao de GTINS na UI nem no Excel.
+
+---
+
+## Status
+
+- [x] Nao iniciada
+- [x] Em andamento
+- [x] Concluida
+- [ ] Bloqueada
+
+---
+
+# Task
+
+## Identificacao
+
+- ID: T021
+- Nome: Implementar opcoes de GTINS no contrato e na interface
+- Fase: Execution
+- Agente responsavel: Executor
+
+---
+
+## Objetivo
+
+Adicionar os interruptores de GTINS na interface e enviar as opcoes ao backend pelo request de geracao do relatorio, sem gerar ainda as abas no Excel.
+
+---
+
+## Contexto
+
+A T020 prepara o parser para carregar itens de produto. Esta task conecta a intencao do usuario ao backend por meio do contrato Tauri.
+
+---
+
+## Entradas
+
+- `docs/scope.md`
+- `docs/non_goals.md`
+- `docs/architecture.md`
+- `src/App.tsx`
+- componentes em `src/components/`
+- `src-tauri/src/commands.rs`
+
+---
+
+## Escopo
+
+- Criar ou ajustar componente de opcoes de GTINS.
+- Adicionar interruptor `Extrair GTINS tambem?`.
+- Exibir `Separar GTINS de entrada e saida em abas diferentes?` apenas quando a extracao estiver ligada.
+- Garantir que ambos iniciem desligados.
+- Garantir que desligar a extracao tambem desligue a separacao.
+- Estender `GenerateReportRequest` com `extract_gtins` e `split_gtins_by_operation`.
+- Enviar os valores pelo `invoke("generate_report")`.
+
+---
+
+## Fora de escopo (CRITICO)
+
+- Nao persistir os interruptores.
+- Nao gerar abas de GTINS no Excel.
+- Nao alterar parser alem do ja previsto na T020.
+- Nao processar XML ou produtos no frontend.
+
+---
+
+## Saidas esperadas
+
+- UI mostra os interruptores conforme regra.
+- Backend recebe as opcoes no request.
+- Fluxo atual continua funcionando mesmo quando GTINS estiver desligado.
+
+---
+
+## Criterios de aceite
+
+- Os interruptores iniciam desligados ao abrir a tela.
+- O segundo interruptor aparece apenas quando o primeiro esta ligado.
+- Ao desligar o primeiro interruptor, o segundo volta para desligado.
+- O request enviado ao backend contem as duas opcoes.
+- As opcoes nao sao salvas em config local.
+- `npm run test` passa.
+- `npm run build` passa.
+- `cargo test` passa.
+- `cargo build` passa.
+
+---
+
+## Dependencias
+
+- T020 concluida.
+
+---
+
+## Restricoes
+
+- Frontend nao deve processar XML bruto.
+- Frontend nao deve receber lista de produtos.
+- Manter a experiencia visual coerente com a UI atual.
+
+---
+
+## Impacto no sistema
+
+- Afeta `App.tsx`, possivelmente um novo componente em `src/components/` e `commands.rs`.
+
+---
+
+## Estrategia de implementacao
+
+- Implementar estado local em `App`.
+- Isolar os controles em componente pequeno se combinar com o padrao atual.
+- Estender o request Rust sem alterar resposta.
+
+---
+
+## Plano de validacao
+
+- Validar build frontend e backend.
+- Validar por inspecao/teste que as opcoes nao entram em persistencia.
+
+---
+
+## Artefatos a atualizar
+
+- `src/App.tsx`
+- `src/components/` se aplicavel
+- `src-tauri/src/commands.rs`
+- `docs/handoff.md`
+- `docs/project_status.md`
+- `docs/tasks.md`
+
+---
+
+## Observacoes
+
+- Esta task ainda nao deve gerar abas de GTINS.
+
+---
+
+## Status
+
+- [x] Nao iniciada
+- [x] Em andamento
+- [x] Concluida
+- [ ] Bloqueada
+
+---
+
+# Task
+
+## Identificacao
+
+- ID: T022
+- Nome: Gerar abas opcionais de GTINS no Excel
+- Fase: Execution
+- Agente responsavel: Executor
+
+---
+
+## Objetivo
+
+Implementar no modulo de relatorio a geracao opcional da aba `GTINS` ou das abas `GTINS Entradas` e `GTINS Saidas`, com deduplicacao por Descricao + NCM + CEST + GTIN.
+
+---
+
+## Contexto
+
+Com parser e contrato preparados, esta task entrega o comportamento final da extracao opcional de GTINS no mesmo arquivo Excel.
+
+---
+
+## Entradas
+
+- `docs/scope.md`
+- `docs/non_goals.md`
+- `docs/architecture.md`
+- `docs/decision_log.md`
+- `src-tauri/src/report.rs`
+- `src-tauri/src/commands.rs`
+- modelo de `ProductItem` criado na T020
+
+---
+
+## Escopo
+
+- Criar opcoes de relatorio para GTINS no backend.
+- Quando `extract_gtins` estiver desligado, manter o Excel sem abas de GTINS.
+- Quando ligado sem separacao, criar aba `GTINS`.
+- Quando ligado com separacao, criar abas `GTINS Entradas` e `GTINS Saidas`.
+- Considerar apenas NF-e/NFC-e classificados como entrada ou saida.
+- Excluir CT-e e notas sem CNPJ identificado.
+- Deduplicar por Descricao + NCM + CEST + GTIN.
+- Usar descricao completa, sem limite de palavras.
+- Escrever apenas colunas Descricao, NCM, CEST e GTIN.
+- Permitir aba(s) somente com cabecalho quando nao houver produto elegivel.
+- Adicionar testes de relatorio.
+
+---
+
+## Fora de escopo (CRITICO)
+
+- Nao criar arquivo separado para GTINS.
+- Nao adicionar colunas extras.
+- Nao persistir dados de GTINS.
+- Nao retornar lista de produtos ao frontend.
+- Nao alterar regras de classificacao fiscal.
+
+---
+
+## Saidas esperadas
+
+- Excel inclui abas de GTINS conforme as opcoes.
+- Produtos duplicados pela chave composta aparecem uma vez por aba.
+- Produtos com qualquer campo diferente aparecem em linhas separadas.
+
+---
+
+## Criterios de aceite
+
+- Com GTINS desligado, nenhuma aba de GTINS e criada.
+- Com GTINS ligado e separacao desligada, aba `GTINS` e criada.
+- Com GTINS ligado e separacao ligada, abas `GTINS Entradas` e `GTINS Saidas` sao criadas.
+- CT-e e notas sem CNPJ identificado nao entram nas abas de GTINS.
+- Produto sem CEST ou GTIN aparece com campo em branco.
+- Descricao de GTINS nao sofre limite de palavras.
+- Deduplicacao por Descricao + NCM + CEST + GTIN funciona.
+- `cargo test` passa.
+- `cargo build` passa.
+- `npm run test` passa.
+- `npm run build` passa.
+
+---
+
+## Dependencias
+
+- T020 concluida.
+- T021 concluida.
+
+---
+
+## Restricoes
+
+- Manter geracao do Excel no Rust.
+- Nao enviar massa de produtos ao frontend.
+- Evitar reprocessar XML.
+
+---
+
+## Impacto no sistema
+
+- Afeta principalmente `report.rs` e `commands.rs`.
+- Pode afetar testes de geracao de Excel.
+
+---
+
+## Estrategia de implementacao
+
+- Criar uma estrutura de opcoes para o relatorio.
+- Implementar coleta e deduplicacao dos produtos no modulo `report`.
+- Reaproveitar helpers de layout/formato existentes quando fizer sentido.
+
+---
+
+## Plano de validacao
+
+- Testes automatizados com documentos classificados artificiais.
+- Testes cobrindo aba unica, abas separadas, exclusoes e deduplicacao.
+- Executar builds completos.
+
+---
+
+## Artefatos a atualizar
+
+- `src-tauri/src/report.rs`
+- `src-tauri/src/commands.rs`
+- testes Rust relacionados
+- `docs/handoff.md`
+- `docs/project_status.md`
+- `docs/tasks.md`
+
+---
+
+## Observacoes
+
+- Esta task completa a funcionalidade de GTINS no arquivo Excel.
+
+---
+
+## Status
+
+- [x] Nao iniciada
 - [x] Em andamento
 - [x] Concluida
 - [ ] Bloqueada
