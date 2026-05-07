@@ -1,6 +1,6 @@
 [package]
 name = "gerador-relatorio-notas"
-version = "0.1.0"
+version = "1.0.0"
 description = "Aplicativo local para gerar relatorios de documentos fiscais."
 authors = ["Pratica"]
 edition = "2021"
